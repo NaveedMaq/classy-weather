@@ -33,26 +33,23 @@ function formatDay(dateStr) {
 }
 
 class App extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      location: 'srinagar',
-      isLoading: false,
-      displayLocation: '',
-      weather: {},
-    };
-    this.fetchWeather = this.fetchWeather.bind(this);
-  }
+  state = {
+    location: '',
+    isLoading: false,
+    displayLocation: '',
+    weather: {},
+  };
 
-  async fetchWeather() {
+  fetchWeather = async () => {
+    if (this.state.location.length < 2) return this.setState({ weather: {} });
     try {
       this.setState({ isLoading: true });
+
       // 1) Getting location (geocoding)
       const geoRes = await fetch(
         `https://geocoding-api.open-meteo.com/v1/search?name=${this.state.location}`
       );
       const geoData = await geoRes.json();
-      console.log(geoData);
 
       if (!geoData.results) throw new Error('Location not found');
 
@@ -73,21 +70,29 @@ class App extends React.Component {
     } finally {
       this.setState({ isLoading: false });
     }
+  };
+
+  setLocation = (e) => this.setState({ location: e.target.value });
+
+  componentDidMount() {
+    this.setState({ location: localStorage.getItem('location') || '' });
+  }
+
+  componentDidUpdate(prevProp, prevState) {
+    if (this.state.location !== prevState.location) {
+      this.fetchWeather();
+      localStorage.setItem('location', this.state.location);
+    }
   }
 
   render() {
     return (
       <div className='app'>
         <h1>Classy weather</h1>
-        <div>
-          <input
-            type='text'
-            placeholder='Search for location...'
-            value={this.state.location}
-            onChange={(e) => this.setState({ location: e.target.value })}
-          />
-        </div>
-        <button onClick={this.fetchWeather}>Get Weather</button>
+        <Input
+          location={this.state.location}
+          onChangeLocation={this.setLocation}
+        />
         {this.state.isLoading && <p className='loader'>Loading...</p>}
         {this.state.weather.weathercode && (
           <Weather
@@ -102,7 +107,25 @@ class App extends React.Component {
 
 export default App;
 
+class Input extends React.Component {
+  render() {
+    return (
+      <div>
+        <input
+          type='text'
+          placeholder='Search for location...'
+          value={this.props.location}
+          onChange={this.props.onChangeLocation}
+        />
+      </div>
+    );
+  }
+}
 class Weather extends React.Component {
+  componentWillUnmount() {
+    // console.log('weather  is unmounting');
+  }
+
   render() {
     const {
       temperature_2m_max: max,
@@ -111,7 +134,6 @@ class Weather extends React.Component {
       weathercode: codes,
     } = this.props.weather;
 
-    console.log(this.props.displayLocation);
     return (
       <div>
         <h2>Weather {this.props.displayLocation}</h2>
